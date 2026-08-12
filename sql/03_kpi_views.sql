@@ -44,7 +44,9 @@ SELECT
     l.CollateralValue,
     l.CurrentStatus,
     l.DelinquencyDays,
-    l.ChargeOffFlag,
+    -- Stored as BIT (efficient for storage/constraints), but SQL Server's SUM() rejects
+    -- BIT directly -- cast to INT once here so every downstream view/query can SUM() it.
+    CAST(l.ChargeOffFlag AS INT) AS ChargeOffFlag,
     l.ChargeOffAmount,
     l.ChargeOffDate,
     -- A loan is "active" (an earning asset still on the books) once it's originated

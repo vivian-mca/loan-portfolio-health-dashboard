@@ -266,7 +266,7 @@ def build_members(unsecured: pd.DataFrame) -> pd.DataFrame:
     )
     members["MemberID"] = np.arange(1, len(members) + 1)
 
-    members["CreditScore"] = rank_rescale_linear(members["CreditScoreRaw"], *CREDIT_SCORE_BAND)
+    members["CreditScore"] = rank_rescale_linear(members["CreditScoreRaw"], *CREDIT_SCORE_BAND).astype(int)
     members["AnnualIncome"] = rank_rescale(members["AnnualIncomeRaw"], *ANNUAL_INCOME_BAND)
 
     raw_dti = (members["MonthlyDebtRaw"] * 12) / members["AnnualIncomeRaw"]
