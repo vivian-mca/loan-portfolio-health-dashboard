@@ -1,0 +1,33 @@
+# Secrets / local environment
+.env
+
+# Data (regenerate via scripts/download_data.sh + scripts/build_dataset.py --
+# raw Kaggle source has an unclear license, so it isn't redistributed here)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Docker / SQL Server
+*.bak
+*.trn
+*.ldf
+*.mdf
+
+# Power BI
+*.pbix.bak
+~$*.pbix
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
