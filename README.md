@@ -13,18 +13,17 @@ Full write-up of the reasoning behind every decision: **[docs/study-guide.md](do
 - **SQL Server 2022** (Docker container, `mcr.microsoft.com/mssql/server`)
 - **T-SQL**: normalized star schema, views, parameterized stored procedures, window functions
 - **Python** (pandas/numpy): data cleaning and synthetic data generation pipeline
-- **Power BI**: dashboard, DAX measures, drill-through reports
+- **Power BI Service**: two-page interactive dashboard, 10 DAX measures, slicers, conditional-formatting heatmap (built via a static Excel/OneDrive data connection rather than a live SQL link — see [docs/study-guide.md, Section 5](docs/study-guide.md#5-power-bi-dashboard-steps) for why and how)
 - **Data source**: [Kaggle "Bank Loan Status Dataset"](https://www.kaggle.com/datasets/zaurbegiev/my-dataset) (real credit score/income/loan-outcome data) blended with a synthesized credit-union operational layer (branch, loan officer, interest rate, collateral/LTV) — see [docs/study-guide.md, Section 2](docs/study-guide.md#2-environment--docker-setup) for exactly what's real vs. synthesized and why.
 
 ## Key Findings
 
-*(Fill in after loading the data and running the KPI queries — see `sql/05_dashboard_queries.sql` and `EXEC lending.usp_GetPortfolioKPISummary;`)*
-
-- Portfolio delinquency rate: **_TBD_**
-- Charge-off rate: **_TBD_**
-- Weighted average LTV (secured loans): **_TBD_**
-- Net interest margin: **_TBD_**
-- Loan concentration by type: **_TBD_**
+- Portfolio delinquency rate (balance-weighted): **9.35%**
+- Charge-off rate (cumulative, by amount): **1.63%**
+- Weighted average LTV (secured loans): **~82%**
+- Net interest margin: **~4.5%**
+- Loan concentration by type is the most interesting finding: **mortgages are only 12% of loan *count* but 81% of active *dollar balance*** — a concentration risk that a simple count-based breakdown would completely miss, and a good example of why weighting matters for portfolio risk metrics.
+- Delinquency rate varies sharply by member risk segment: **~3.9% for Prime members vs. ~30.6% for Subprime** — risk concentrates exactly where you'd expect, and the dashboard makes that pattern visible at a glance instead of buried in an average.
 
 ## Project Structure
 

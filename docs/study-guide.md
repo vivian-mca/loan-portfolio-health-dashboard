@@ -225,83 +225,123 @@ The nested `SUM(SUM(...)) OVER ()` is a window function applied *after* the `GRO
 
 ## 5. Power BI Dashboard Steps
 
-*(This section is a manual build guide — connect Power BI Desktop, then follow these steps yourself; nothing here can be built by an AI assistant, since it lives entirely inside the Power BI application.)*
+*(This section is a manual build guide — everything in Power BI itself was built by hand, in the browser; nothing here could be built by an AI assistant, since it lives entirely inside the Power BI application. What follows is what was **actually** done, including the real problems hit along the way, not just the clean happy path.)*
 
-### Connect to the data
+### How the data actually got connected (read this first — it's not what Section 2 assumes)
 
-1. Power BI Desktop → **Get Data → SQL Server**.
-2. Server: `localhost,1433` (or `127.0.0.1,1433`). Database: `LoanPortfolioDB`.
-3. Authentication: **Database** (SQL login) — username `sa`, password whatever you set in `.env`.
-4. Choose **Import** mode (not DirectQuery) — 25,000 rows is trivial for Import, and Import mode gets you full DAX and much faster visuals.
-5. In Navigator, select: `lending.vw_LoanPortfolioBase` (your main fact table for slicing) plus `lending.Branches`, `lending.LoanOfficers`, `lending.LoanTypes`, `lending.Members` if you want dimension tables separately for a proper star-schema model in Power BI's model view. (`vw_LoanPortfolioBase` already has the dimension attributes denormalized in, so a single-table model also works fine for a first pass — build relationships later if you split them out.)
-6. For the pre-aggregated breakdown queries in `sql/05_dashboard_queries.sql`, use **Get Data → SQL Server → Advanced options → SQL statement** and paste one query in, or just build the equivalent aggregation with Power BI's own `GROUP BY` in Power Query / DAX.
+The original plan was Power BI Desktop connecting live to the Dockerized SQL Server. In practice, that path turned into hours of real infrastructure debugging on a 16GB Mac trying to run two virtual machines at once (Colima for Docker, plus a VMware Fusion VM for Windows/Power BI Desktop, since Power BI Desktop is Windows-only): a stuck first connection attempt that turned out to be a cached wrong password silently retrying forever, a working connection that later died because the Mac went to sleep mid-transfer and killed the VM's network state, and finally 80%+ swap usage from running both VMs simultaneously making everything crawl.
 
-### DAX measures to build
+Rather than keep fighting the VM, the pragmatic call was to **switch to Power BI Service (the browser-based version)** and use a **static Excel export** instead of a live SQL connection:
 
-Create a new measure for each (Modeling tab → New Measure), in a dedicated "_Measures" table for organization:
+1. Ran a query against `lending.vw_LoanPortfolioBase` directly in the container (`sqlcmd`), exported the result to CSV, then converted it to a proper Excel Table (`.xlsx`) with `openpyxl` — see the export step recorded in this project's history if you want to reproduce it.
+2. Power BI Service's own "upload a local file" option turned out to be restricted on this account/tenant (a common enterprise-lite setting) — confirmed by testing two different upload paths that both silently failed or greyed out the file. The workaround: uploaded the `.xlsx` to **OneDrive** first (a completely different, unrestricted upload flow), then in Power BI used **Get Data → Excel → "Link to file"** pointed at the OneDrive URL, instead of "Upload file."
+3. In the Navigator, the workbook showed the same table twice (once as a raw worksheet, once as the named Excel Table) because the sheet and the table happened to share a name — picked the actual named Table.
+
+**The practical consequence:** the semantic model's table is called **`LoanPortfolioBase`**, not `vw_LoanPortfolioBase` like the SQL Server version — Excel doesn't carry over the SQL view name. Every DAX formula below uses `LoanPortfolioBase[...]`. If you ever do get a live Desktop-to-SQL-Server connection working (e.g., on a machine that can natively run Power BI Desktop, or a cloud VM with a data gateway), the same DAX works unchanged — just swap the table name back to `vw_LoanPortfolioBase`.
+
+This whole detour is worth being able to explain in an interview, honestly: it's a real example of hitting an infrastructure wall, recognizing when to stop fighting it, and re-scoping to a workaround that still delivers a fully-functional, interactive result — which is a more realistic day-in-the-life story than "everything connected on the first try."
+
+### DAX measures — what was built, and why each one is shaped the way it is
+
+Ten measures, all created via **Model view → New measure** (Power BI Service's Editing mode — the page opens in read-only "Viewing" mode by default, and you have to explicitly switch to "Editing" via a dropdown near the top right before any changes save).
 
 ```dax
 Active Balance =
-CALCULATE(SUM(vw_LoanPortfolioBase[OutstandingBalance]), vw_LoanPortfolioBase[IsActive] = 1)
+CALCULATE(SUM(LoanPortfolioBase[OutstandingBalance]), LoanPortfolioBase[IsActive] = 1)
+```
+The total dollars still owed on loans that haven't resolved to Paid Off or Charged Off — the "earning assets" figure everything else gets measured against.
 
+```dax
 Delinquent Balance =
 CALCULATE(
-    SUM(vw_LoanPortfolioBase[OutstandingBalance]),
-    vw_LoanPortfolioBase[IsActive] = 1,
-    vw_LoanPortfolioBase[IsDelinquent] = 1
+    SUM(LoanPortfolioBase[OutstandingBalance]),
+    LoanPortfolioBase[IsActive] = 1,
+    LoanPortfolioBase[IsDelinquent] = 1
 )
+```
+Same idea, narrowed to loans that are both active *and* 30+ days late — the numerator for delinquency rate.
 
+```dax
 Delinquency Rate =
 DIVIDE([Delinquent Balance], [Active Balance])
+```
+`DIVIDE` instead of a plain `/` on purpose: `DIVIDE` returns `BLANK` instead of throwing an error when the denominator is 0 — which happens the moment a slicer filters down to a branch or segment with zero active loans. A plain `/` would break the visual entirely in that case.
 
+```dax
 Charge-Off Rate =
-DIVIDE(
-    SUM(vw_LoanPortfolioBase[ChargeOffAmount]),
-    SUM(vw_LoanPortfolioBase[LoanAmount])
-)
+DIVIDE(SUM(LoanPortfolioBase[ChargeOffAmount]), SUM(LoanPortfolioBase[LoanAmount]))
+```
+Denominated against total *originated* amount, not `[Active Balance]` — a charged-off loan is by definition no longer active, so dividing by Active Balance would shrink the denominator exactly where the losses live, inflating the rate.
 
+```dax
 Secured Loan Amount =
-CALCULATE(SUM(vw_LoanPortfolioBase[LoanAmount]), vw_LoanPortfolioBase[IsSecured] = 1)
+CALCULATE(SUM(LoanPortfolioBase[LoanAmount]), LoanPortfolioBase[IsSecured] = 1)
 
 Secured Collateral Value =
-CALCULATE(SUM(vw_LoanPortfolioBase[CollateralValue]), vw_LoanPortfolioBase[IsSecured] = 1)
+CALCULATE(SUM(LoanPortfolioBase[CollateralValue]), LoanPortfolioBase[IsSecured] = 1)
 
 Weighted Avg LTV =
 DIVIDE([Secured Loan Amount], [Secured Collateral Value])
+```
+Two separate SUM-based measures divided at the end, rather than one measure that averages each loan's individual LTV — averaging per-loan ratios would let a handful of small loans skew the number regardless of actual dollar exposure. This is the same weighted-vs-simple-average reasoning as the SQL version.
 
-Cost of Funds Rate = 0.0275   -- or pull from a small InstitutionParameters table you import too
+```dax
+Cost of Funds Rate = 0.0275
+```
+A plain constant here, not pulled from a table. The real SQL Server version has a small `InstitutionParameters` table for exactly this so Finance can update the assumption without a code change — but the Excel-based Power BI model doesn't carry that table over, so a literal number is the pragmatic stand-in. Worth flagging as a "what I'd fix" if this became a real recurring report: add a tiny one-row parameters table and reference it here instead.
 
+```dax
 Net Interest Margin =
 VAR InterestIncome =
     SUMX(
-        FILTER(vw_LoanPortfolioBase, vw_LoanPortfolioBase[IsActive] = 1),
-        vw_LoanPortfolioBase[OutstandingBalance] * vw_LoanPortfolioBase[InterestRate]
+        FILTER(LoanPortfolioBase, LoanPortfolioBase[IsActive] = 1),
+        LoanPortfolioBase[OutstandingBalance] * LoanPortfolioBase[InterestRate]
     )
 VAR InterestExpense = [Active Balance] * [Cost of Funds Rate]
 RETURN
     DIVIDE(InterestIncome - InterestExpense, [Active Balance])
-
-Total Active Loans =
-CALCULATE(COUNTROWS(vw_LoanPortfolioBase), vw_LoanPortfolioBase[IsActive] = 1)
 ```
+`SUMX` instead of a flat `SUM`, and this is the one worth really understanding: interest income has to be computed **per loan** (that loan's balance × that loan's own rate) and then summed, since every loan carries a different rate. `SUM(Balance) * AVERAGE(Rate)` is mathematically wrong here — it's not the same as a properly weighted calculation unless you multiply row-by-row first. `SUMX` iterates the table row by row for exactly this reason. The `VAR`s are just there for readability, so the income and expense pieces are named instead of repeating the `SUMX` expression twice.
 
-For **loan concentration**, you don't need a special measure — just drop `[Active Balance]` into a donut/pie chart with `LoanTypeName` as the legend, and turn on "Show value as % of grand total" in the visual's formatting options.
+```dax
+Total Active Loans =
+CALCULATE(COUNTROWS(LoanPortfolioBase), LoanPortfolioBase[IsActive] = 1)
+```
+`COUNTROWS`, not `SUM` — this one's a loan *count*, not a dollar total.
 
-### Visuals to build
+For **loan concentration**, no special measure was needed — `[Active Balance]` dropped straight into a donut chart with `LoanTypeName` as the legend does the job; Power BI computes the percentage-of-total automatically.
 
-1. **KPI card row** (top of the page): five cards — Delinquency Rate, Charge-Off Rate, Weighted Avg LTV, Net Interest Margin, Active Balance — using the measures above. Use conditional formatting (Power BI's built-in card formatting) so Delinquency/Charge-Off Rate turn red above a threshold you pick (e.g., >5%).
-2. **Donut chart — Loan Concentration by Type:** `LoanTypeName` as legend, `[Active Balance]` as values.
-3. **Clustered bar chart — Delinquency Rate by Member Segment:** `MemberSegment` on the axis, `[Delinquency Rate]` as the value. This is the single clearest "risk story" visual — it should visibly show Subprime segments carrying more delinquency.
-4. **Table or matrix — KPI by Branch:** `BranchName` on rows, all five KPI measures as columns. Add conditional-formatting data bars on Delinquency Rate and Charge-Off Rate.
-5. **Ranked table — KPI by Loan Officer:** same as above, but by `LoanOfficerName`, sorted descending by Active Balance, filterable by a Branch slicer so you can drill into "who at this branch is carrying the risk."
-6. **Line chart — Monthly Origination Trend:** `OriginationDate` (by month) on the axis, `Loans Originated` (count) and `Amount Originated` (sum) as two lines (dual axis). Optionally add cohort delinquency rate as a third line to see if newer loan vintages are performing worse than older ones.
-7. **Matrix — Branch × Loan Type:** `BranchName` on rows, `LoanTypeName` on columns, `[Active Balance]` as values, with a heatmap-style conditional format — this is what makes "Branch X is overweight in Auto Loans" visible in one glance.
+### Real bugs hit while building this, and what each one actually teaches
 
-### Drill-downs / interactivity to wire up
+Worth keeping in the story for an interview — these aren't embarrassing, they're the actual mechanics of working in Power BI:
 
-- **Slicers panel:** Branch, Loan Officer, Loan Type, Member Segment, and an Origination Date range slicer — placed on the left or top of the page, filtering everything else.
-- **Drill-through page:** right-click a branch in the Branch KPI table → "Drill through" to a detail page showing that branch's loan officers, individual loan-level table, and a delinquency trend just for that branch. Power BI: Format pane → set the detail page as a drill-through target, add `BranchName` as the drill-through field.
-- **Cross-filtering:** by default, clicking a slice of the Loan Concentration donut will filter every other visual on the page — verify this works and highlight it when you demo the dashboard (it's one of the reasons Power BI drill-downs are more compelling than a static SQL report).
+1. **Circular dependency error on `Weighted Avg LTV`.** Turned out `Secured Collateral Value` had never actually been created — a step got skipped. Power BI's error message ("circular dependency... Measure: X, Measure: X") was confusing at first glance, but the fix was simply going back and creating the missing measure. Lesson: when a DAX error blames a measure for depending on itself, check whether that measure actually exists yet.
+2. **`SUM` failed with "cannot work with values of type String" on `Secured Collateral Value`.** The `CollateralValue` column had imported as **Text**, not a number — because it's blank for ~15,500 unsecured loans and numeric for the rest, and Power Query's automatic type detection got confused by that mix. Confirmed by checking the Data pane: numeric columns show a Σ (summarize) icon, and this one didn't. Fixed in Model view → click the column → Properties → Formatting → Data type → change to **Decimal Number**.
+3. **The origination-trend line chart rendered as noisy daily static, with the x-axis showing raw numbers like `44000`–`46000` instead of dates.** Same root cause as #2: `OriginationDate` had imported as a plain number — those are literally Excel's internal date serial numbers — so Power BI had no date hierarchy to group by and plotted every unique value as a separate point. Fixed the same way: change the column's Data type to **Date**. (`ChargeOffDate` threw a transient "semantic model out of sync" error when set to Date specifically, but went through fine as **Date/time** instead — a fine substitute since none of this data has real time-of-day precision anyway.)
+4. **Four slicers turned into one combined hierarchical slicer.** Dragging `BranchName`, `LoanTypeName`, `MemberSegment`, and `OriginationDate` one after another all landed in the *same* slicer visual's Field well, producing one nested checkbox tree instead of four independent filters. The fix, and the habit going forward: click "Slicer" again to create a brand-new visual *before* dragging in each additional field — never add a second field to a slicer that already has one, unless a combined hierarchy slicer is actually what you want.
+5. **All the KPI cards suddenly showed different, smaller numbers** (a delinquency rate of ~20% instead of 9.35%, active balance of $4.98M instead of $768.67M). Nothing was broken — a slice of the donut chart (Home Improvement, which happens to total almost exactly $4.98M in active balance) had gotten clicked, and **Power BI cross-filters every visual on a page by default** when you click a data point. Clicking the same slice again (or clicking empty canvas) cleared the selection. Worth understanding deliberately: this default cross-filtering behavior is *also* what makes slicers and drill-throughs work — it's a feature, but it can surprise you mid-build.
+6. **The `OriginationDate` slicer initially listed every individual day as its own checkbox** (~2,000 rows to scroll through) — because the default slicer style is "List." Changed via Format visual → Slicer settings → Options → Style → **"Between"**, which turns a date field into a proper two-box date-range picker with a range slider, instead of an unusable wall of checkboxes.
+
+### Visuals actually built
+
+**Page 1 — "Portfolio overview":**
+1. **KPI card row:** five cards — Delinquency Rate, Charge-Off Rate, Weighted Avg LTV, Net Interest Margin, Active Balance.
+2. **Donut chart — "Active Balance by LoanTypeName":** `LoanTypeName` as legend, `[Active Balance]` as values. Confirms the ~81%-mortgage-by-balance concentration finding.
+3. **Clustered column chart — "Delinquency Rate by MemberSegment":** `MemberSegment` on the X-axis, `[Delinquency Rate]` as the Y-axis. The clearest risk-segmentation story on the dashboard — Subprime visibly towers over Prime.
+4. **Line chart — "Count of LoanID by Year":** `OriginationDate` (as a proper date hierarchy after the fix above) on the X-axis, count of `LoanID` on the Y-axis.
+5. **Four independent slicers:** Branch, Loan Type, and Member Segment as **Dropdown** style; Origination Date as **Between** style (a real date-range picker).
+
+**Page 2 — "Branch officer & detail":**
+1. **Table — KPI by branch:** `BranchName`, `[Active Balance]`, `[Delinquency Rate]`, `[Charge-Off Rate]`, `[Weighted Avg LTV]`, sorted descending by Active Balance (click the column header to sort).
+2. **Ranked table — top loan officers:** `LoanOfficerName`, `BranchName`, `[Active Balance]`, sorted descending.
+3. **Matrix — Branch × Loan Type:** `BranchName` on rows, `LoanTypeName` on columns, `[Active Balance]` as values, with **conditional formatting → background color → gradient** turned on (Format visual → Cell elements → Background color → the small `fx` icon) so the dollar amounts render as an actual heatmap instead of a plain number grid.
+4. **One Branch slicer** (Dropdown style), so this page can be explored independently of Page 1's filters.
+
+### Drill-through: deliberately skipped, and why that's the right call here
+
+The original plan was a drill-through from a branch-level visual on Page 1 straight into Page 2, filtered to that branch. In practice, none of Page 1's visuals actually use `BranchName` as a category (the KPI cards are portfolio-wide aggregates, and the donut/bar/line charts are sliced by loan type, member segment, and date respectively) — the branch-level table ended up on Page 2 as the pages were built out. Right-click drill-through needs a source visual with the target field as a category, so there was no natural place to trigger it from without adding a visual to Page 1 purely to serve as a drill-through launchpad.
+
+Given that, the call was to skip it rather than force something awkward under time pressure. **Two page tabs plus slicers on both pages already provide real, working interactivity** — that's a legitimate, common pattern, not a shortcut to be embarrassed about. Drill-through is listed as a concrete next step in Section 6 below, with the specific fix already scoped out.
 
 ---
 
@@ -316,3 +356,5 @@ Honest reflection on where this project's shortcuts would need to be replaced in
 - **Move the SA password and connection details to a real secrets manager** (Azure Key Vault, AWS Secrets Manager, or at minimum a properly permissioned `.env` outside source control) instead of a local `.env` file — fine for a laptop demo, not fine for anything with real member data.
 - **Add row-level security in Power BI** so a branch manager only sees their own branch's data, not the whole portfolio — a real deployment of this dashboard would need that before any non-executive user got access.
 - **Replace the synthetic branch/loan-officer/collateral data with the real system-of-record feeds** (loan origination system, core banking platform) via a proper ETL/ELT pipeline instead of a one-time CSV load — this project's `BULK INSERT` approach is a fine one-time load for a portfolio piece, not a repeatable production pattern.
+- **Add the drill-through from Page 1 to Page 2 that got deliberately skipped** (see Section 5). It needs one small addition first — a branch-level visual on the "Portfolio overview" page (e.g., a compact "Active Balance by Branch" bar chart) to serve as the right-click source — then wiring `BranchName` into Page 2's Drill-through field well. Small, well-scoped, and exactly the kind of thing to knock out in a follow-up pass rather than force in under deadline pressure.
+- **Get a real live connection working between Power BI Desktop and SQL Server**, instead of the static Excel/OneDrive workaround this project ended up using (see Section 5). That would mean either running Power BI Desktop on hardware that can actually spare the RAM for a second VM alongside Docker, or moving SQL Server to a small always-on cloud instance so no VM is needed on the client side at all — either fixes the root cause (resource contention) rather than routing around it.
