@@ -1,5 +1,12 @@
 # Loan Portfolio Health Dashboard
 
+<p align="left">
+  <img src="https://img.shields.io/badge/SQL%20Server-2022-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white" alt="SQL Server 2022">
+  <img src="https://img.shields.io/badge/Power%20BI-Service-F2C811?style=flat-square&logo=powerbi&logoColor=black" alt="Power BI Service">
+  <img src="https://img.shields.io/badge/Python-3.13-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.13">
+  <img src="https://img.shields.io/badge/Docker-Colima-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
+</p>
+
 A SQL Server + Power BI portfolio project analyzing loan/member risk for a fictional credit union, built as a Data Specialist application portfolio piece.
 
 ## Business Problem
