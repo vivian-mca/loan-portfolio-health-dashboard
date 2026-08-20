@@ -1,6 +1,6 @@
-# Loan Portfolio Health Dashboard — Study Guide
+# Loan Portfolio Health Dashboard — Technical Walkthrough
 
-This is a teaching-style walkthrough of the whole project: what was built, why it was built that way, and how to explain it in an interview. Read it top to bottom once, then use it as a reference when you rebuild pieces from memory.
+This is a full walkthrough of the project: what was built, why it was built that way, and the real problems hit along the way. It serves two audiences at once — anyone reviewing this project can read it top to bottom for the complete reasoning behind every decision, and it's written so I can use it as a reference to rebuild pieces from memory or explain the project in an interview.
 
 ---
 
