@@ -3,7 +3,7 @@
    KPI views for the Loan Portfolio Health Dashboard.
 
    Business logic for each KPI is explained in plain language in
-   docs/study-guide.md Section 4 -- this file focuses on the SQL. Every
+   docs/walkthrough.md Section 4 -- this file focuses on the SQL. Every
    view is built on top of lending.vw_LoanPortfolioBase so the KPI
    definitions ("what counts as active," "what counts as delinquent")
    are defined exactly once and reused everywhere, instead of redefined
@@ -91,7 +91,7 @@ GO
 -- uncollectible? Reported as cumulative net charge-offs as a percentage
 -- of total originated volume (a simplified, non-annualized version of
 -- the standard "net charge-offs / average outstanding loans" ratio --
--- see docs/study-guide.md for why, and how to annualize it if you add
+-- see docs/walkthrough.md for why, and how to annualize it if you add
 -- a date-range parameter).
 -- ---------------------------------------------------------------------
 CREATE OR ALTER VIEW lending.vw_KPI_ChargeOffRate AS
@@ -135,7 +135,7 @@ GO
 -- (Interest income earned on the loan book - interest expense paid on
 -- the deposits/funding that back it) / earning assets. Interest income
 -- and expense are annualized run-rates off the current snapshot balance,
--- not trailing-twelve-months actuals -- see docs/study-guide.md for the
+-- not trailing-twelve-months actuals -- see docs/walkthrough.md for the
 -- simplification and how you'd extend this with a real payments table.
 -- CostOfFundsRate comes from lending.InstitutionParameters so Finance
 -- can update the assumption without touching this view.

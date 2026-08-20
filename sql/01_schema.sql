@@ -2,7 +2,7 @@
    01_schema.sql
    Loan Portfolio Health Dashboard -- database + table definitions
 
-   Design notes (see docs/study-guide.md Section 3 for the full write-up):
+   Design notes (see docs/walkthrough.md Section 3 for the full write-up):
    - A dedicated LENDING schema (not dbo) so a real deployment could add
      other subject areas (deposits, cards, ...) without collisions.
    - Star-ish shape: Loans is the fact table; Members, Branches,

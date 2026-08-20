@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Downloads the raw Kaggle source dataset used by build_dataset.py.
-# Requires a Kaggle API credential at ~/.kaggle/ (see docs/study-guide.md, Section 2).
+# Requires a Kaggle API credential at ~/.kaggle/ (see docs/walkthrough.md, Section 2).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

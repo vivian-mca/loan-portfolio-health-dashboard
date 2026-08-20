@@ -13,15 +13,15 @@ A SQL Server + Power BI portfolio project analyzing loan/member risk for a ficti
 
 Credit unions need continuous visibility into loan portfolio health: how much of the book is delinquent, how much has been charged off as a loss, how exposed the institution is on secured lending (loan-to-value), whether the spread between loan income and cost of funds (net interest margin) is healthy, and whether the portfolio is dangerously concentrated in one loan type. This project builds a SQL Server data model and KPI layer that answers those five questions — and breaks each one down by branch, loan officer, and member risk segment so the results are actionable, not just descriptive.
 
-Full write-up of the reasoning behind every decision: **[docs/study-guide.md](docs/study-guide.md)**.
+Full write-up of the reasoning behind every decision: **[docs/walkthrough.md](docs/walkthrough.md)**.
 
 ## Tech Stack
 
 - **SQL Server 2022** (Docker container, `mcr.microsoft.com/mssql/server`)
 - **T-SQL**: normalized star schema, views, parameterized stored procedures, window functions
 - **Python** (pandas/numpy): data cleaning and synthetic data generation pipeline
-- **Power BI Service**: two-page interactive dashboard, 10 DAX measures, slicers, conditional-formatting heatmap (built via a static Excel/OneDrive data connection rather than a live SQL link — see [docs/study-guide.md, Section 5](docs/study-guide.md#5-power-bi-dashboard-steps) for why and how)
-- **Data source**: [Kaggle "Bank Loan Status Dataset"](https://www.kaggle.com/datasets/zaurbegiev/my-dataset) (real credit score/income/loan-outcome data) blended with a synthesized credit-union operational layer (branch, loan officer, interest rate, collateral/LTV) — see [docs/study-guide.md, Section 2](docs/study-guide.md#2-environment--docker-setup) for exactly what's real vs. synthesized and why.
+- **Power BI Service**: two-page interactive dashboard, 10 DAX measures, slicers, conditional-formatting heatmap (built via a static Excel/OneDrive data connection rather than a live SQL link — see [docs/walkthrough.md, Section 5](docs/walkthrough.md#5-power-bi-dashboard-steps) for why and how)
+- **Data source**: [Kaggle "Bank Loan Status Dataset"](https://www.kaggle.com/datasets/zaurbegiev/my-dataset) (real credit score/income/loan-outcome data) blended with a synthesized credit-union operational layer (branch, loan officer, interest rate, collateral/LTV) — see [docs/walkthrough.md, Section 2](docs/walkthrough.md#2-environment--docker-setup) for exactly what's real vs. synthesized and why.
 
 ## Key Findings
 
@@ -49,7 +49,7 @@ loan-portfolio-health-dashboard/
 │   └── 05_dashboard_queries.sql   # pre-aggregated queries for Power BI
 ├── data/                    # not committed (see .gitignore) — regenerate via scripts/
 └── docs/
-    └── study-guide.md       # full teaching-style walkthrough
+    └── walkthrough.md       # full teaching-style walkthrough
 ```
 
 ## Quick Start
@@ -62,11 +62,11 @@ docker compose up -d
 ./scripts/run_sql.sh
 ```
 
-Full setup walkthrough, including Kaggle API credential setup: [docs/study-guide.md, Section 2](docs/study-guide.md).
+Full setup walkthrough, including Kaggle API credential setup: [docs/walkthrough.md, Section 2](docs/walkthrough.md).
 
 ## Power BI Dashboard
 
-Full build guide — visuals, DAX measures, and the real bugs hit along the way — in [docs/study-guide.md, Section 5](docs/study-guide.md#5-power-bi-dashboard-steps).
+Full build guide — visuals, DAX measures, and the real bugs hit along the way — in [docs/walkthrough.md, Section 5](docs/walkthrough.md#5-power-bi-dashboard-steps).
 
 **Page 1 — Portfolio overview**
 
