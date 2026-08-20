@@ -1,0 +1,23 @@
+{
+  "name": "Loan Portfolio Health",
+  "dataColors": [
+    "#0B5FA5",
+    "#3D85C6",
+    "#7FB4DD",
+    "#B7D6EE",
+    "#1C8F6C",
+    "#5B6472",
+    "#B3701A",
+    "#A5342F"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#17212B",
+  "tableAccent": "#0B5FA5",
+  "good": "#1C8F6C",
+  "neutral": "#B3701A",
+  "bad": "#A5342F",
+  "maximum": "#0B5FA5",
+  "center": "#B3701A",
+  "minimum": "#A5342F",
+  "hyperlinkColor": "#0B5FA5"
+}

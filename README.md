@@ -66,9 +66,16 @@ Full setup walkthrough, including Kaggle API credential setup: [docs/study-guide
 
 ## Power BI Dashboard
 
-*(Screenshots and a link to the published report go here once the dashboard is built — see [docs/study-guide.md, Section 5](docs/study-guide.md) for the full build guide: visuals, DAX measures, and drill-throughs.)*
+Full build guide — visuals, DAX measures, and the real bugs hit along the way — in [docs/study-guide.md, Section 5](docs/study-guide.md#5-power-bi-dashboard-steps).
 
-- **Screenshots:** _add here_
+**Page 1 — Portfolio overview**
+
+<img src="screenshots/page1-overview.png" width="800" alt="Portfolio overview page: five KPI cards, loan concentration donut, delinquency-by-segment bar chart, and annual origination trend line, with branch/type/segment/date slicers">
+
+**Page 2 — Branch & officer detail**
+
+<img src="screenshots/page2-branch-detail.png" width="800" alt="Branch and officer detail page: KPI-by-branch table, top loan officers ranked table, and a branch by loan type matrix">
+
 - **Published report link:** _add here_
 
 ## License / Data Attribution
