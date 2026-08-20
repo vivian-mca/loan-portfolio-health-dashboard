@@ -76,7 +76,11 @@ Full build guide — visuals, DAX measures, and the real bugs hit along the way 
 
 <img src="screenshots/page2-branch-detail.png" width="800" alt="Branch and officer detail page: KPI-by-branch table, top loan officers ranked table, and a branch by loan type matrix">
 
-- **Published report link:** _add here_
+**Interactivity demo** (slicers filtering the KPI cards and charts live):
+
+<img src="screenshots/dashboard-demo.gif" width="800" alt="Demo of clicking branch and member segment slicers and watching the KPI cards, donut chart, and bar chart update in real time">
+
+*(No public interactive link — this account's institutional Microsoft 365 tenant has "Publish to web" disabled, a common IT policy for education/organizational accounts. The GIF above and screenshots show the full interactive behavior.)*
 
 ## License / Data Attribution
 
